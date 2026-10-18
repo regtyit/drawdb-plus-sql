@@ -52,6 +52,8 @@ export const Tab = {
   ENUMS: "6",
   VIEWS: "7",
   SQL_HEADER: "8",
+  SQL_CONSOLE: "9",
+  DATA: "10",
 };
 
 export const ObjectType = {
@@ -95,6 +97,10 @@ export const MODAL = {
   LANGUAGE: 10,
   SHARE: 11,
   CONFIG_CUSTOM_TYPES: 12,
+  POSTGRES_CONNECTION: 13,
+  SCHEMA_SYNC: 14,
+  SCHEMA_IMPORT: 15,
+  SCHEMA_MIGRATION: 16,
 };
 
 export const STATUS = {

@@ -127,7 +127,7 @@ export default function BugReport() {
   const theme = localStorage.getItem("theme") || "light";
 
   useEffect(() => {
-    document.title = "Report a bug | drawDB";
+    document.title = "Report a bug | drawdb-plus-sql";
     document.body.setAttribute("class", "theme");
   }, []);
 
@@ -243,7 +243,8 @@ export default function BugReport() {
         } my-1`}
       />
       <div className="text-center text-sm py-3">
-        &copy; {new Date().getFullYear()} <strong>drawDB</strong> - All rights reserved.
+        &copy; {new Date().getFullYear()} <strong>drawdb-plus-sql</strong> -
+        AGPL-3.0 fork of drawDB
       </div>
     </>
   );

@@ -37,7 +37,7 @@ export default function LandingPage() {
 
     document.body.setAttribute("theme-mode", "light");
     document.title =
-      "drawDB | Online database diagram editor and SQL generator";
+      "drawdb-plus-sql | Online database diagram editor, SQL generator, and live PostgreSQL console";
 
     fetchStats();
   }, []);
@@ -293,8 +293,8 @@ export default function LandingPage() {
       </div>
       <hr className="border-zinc-300" />
       <div className="text-center text-sm py-3">
-        &copy; {new Date().getFullYear()} <strong>drawDB</strong> - All rights
-        reserved.
+        &copy; {new Date().getFullYear()} <strong>drawdb-plus-sql</strong> -
+        AGPL-3.0 fork of drawDB
       </div>
     </div>
   );

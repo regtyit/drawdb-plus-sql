@@ -43,7 +43,11 @@ import ImportWithAiButton from "./ImportWithAiButton";
 import Language from "./Language";
 import New from "./New";
 import Open from "./Open";
+import PostgresConnection from "./PostgresConnection";
 import Rename from "./Rename";
+import SchemaImport from "./SchemaImport";
+import SchemaMigration from "./SchemaMigration";
+import SchemaSync from "./SchemaSync";
 import Share from "./Share";
 import { mergeCustomTypes } from "../../../utils/customTypes";
 
@@ -379,6 +383,14 @@ export default function Modal({
         );
       case MODAL.SHARE:
         return <Share title={title} setModal={setModal} />;
+      case MODAL.POSTGRES_CONNECTION:
+        return <PostgresConnection setModal={setModal} />;
+      case MODAL.SCHEMA_SYNC:
+        return <SchemaSync setModal={setModal} />;
+      case MODAL.SCHEMA_IMPORT:
+        return <SchemaImport setModal={setModal} />;
+      case MODAL.SCHEMA_MIGRATION:
+        return <SchemaMigration setModal={setModal} />;
       default:
         return <></>;
     }
@@ -400,6 +412,12 @@ export default function Modal({
 
   const showAiFooter =
     modal === MODAL.IMPORT_SRC && typeof importSqlWithAi === "function";
+
+  const customFooterModal =
+    modal === MODAL.POSTGRES_CONNECTION ||
+    modal === MODAL.SCHEMA_SYNC ||
+    modal === MODAL.SCHEMA_IMPORT ||
+    modal === MODAL.SCHEMA_MIGRATION;
 
   const aiFooter = (
     <div className="flex items-center justify-between">
@@ -429,7 +447,11 @@ export default function Modal({
       title={getModalTitle(modal)}
       visible={modal !== MODAL.NONE && modal !== MODAL.CONFIG_CUSTOM_TYPES}
       onOk={getModalOnOk}
-      {...(showAiFooter ? { footer: aiFooter } : {})}
+      {...(customFooterModal
+        ? { footer: null }
+        : showAiFooter
+          ? { footer: aiFooter }
+          : {})}
       afterClose={() => {
         setExportData(() => ({
           data: "",
@@ -452,9 +474,9 @@ export default function Modal({
       okText={getOkText(modal)}
       okButtonProps={{
         disabled: okDisabled,
-        hidden: modal === MODAL.SHARE,
+        hidden: modal === MODAL.SHARE || customFooterModal,
       }}
-      hasCancel={modal !== MODAL.SHARE}
+      hasCancel={modal !== MODAL.SHARE && !customFooterModal}
       cancelText={t("cancel")}
       width={getModalWidth(modal)}
       bodyStyle={{

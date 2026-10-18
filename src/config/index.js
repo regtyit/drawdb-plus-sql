@@ -16,3 +16,12 @@ export const gistBackendUrl = trimSlash(
     import.meta.env.VITE_BACKEND_URL ||
     "http://localhost:5000",
 );
+
+export const postgresApiUrl = trimSlash(
+  runtime.postgresApiUrl ||
+    import.meta.env.VITE_POSTGRES_API_URL ||
+    "http://localhost:5001",
+);
+
+export const postgresApiToken =
+  runtime.postgresApiToken || import.meta.env.VITE_POSTGRES_API_TOKEN || "";

@@ -72,6 +72,8 @@ import {
   useAreas,
   useEnums,
   useViews,
+  usePostgres,
+  useModal,
   useFullscreen,
   useNavigateWithParams,
 } from "../../hooks";
@@ -117,7 +119,6 @@ const EDITOR_HOTKEY = {
   preventDefault: true,
   ignoreEventWhen: (e) => Boolean(e.target?.closest?.(".monaco-editor")),
 };
-
 export default function ControlPanel({
   title,
   setTitle,
@@ -127,7 +128,7 @@ export default function ControlPanel({
 }) {
   const { id: diagramId } = useParams();
 
-  const [modal, setModal] = useState(MODAL.NONE);
+  const { modal, setModal } = useModal();
   const [sidesheet, setSidesheet] = useState(SIDESHEET.NONE);
   const [showEditName, setShowEditName] = useState(false);
   const [showAutoConnectModal, setShowAutoConnectModal] = useState(false);
@@ -178,6 +179,21 @@ export default function ControlPanel({
   const isTemplate = useMatch("/editor/templates/:id");
   const navigate = useNavigateWithParams();
   const extensions = useExtensions();
+  const {
+    connected,
+    connection,
+    connectionModalOpen,
+    openConnectionModal,
+    closeConnectionModal,
+    disconnect,
+  } = usePostgres();
+
+  useEffect(() => {
+    if (connectionModalOpen) {
+      setModal(MODAL.POSTGRES_CONNECTION);
+      closeConnectionModal();
+    }
+  }, [connectionModalOpen, closeConnectionModal, setModal]);
 
   const swapDbmlSnapshot = (entry) => {
     const current = { tables, relationships, enums };
@@ -783,10 +799,6 @@ export default function ControlPanel({
     ]);
     setRedoStack([]);
     fitToView(arrangedTables);
-  };
-  const autoConnectFKs = () => {
-    if (layout.readOnly) return;
-    setShowAutoConnectModal(true);
   };
   const confirmAutoConnectFKs = () => {
     setShowAutoConnectModal(false);
@@ -1736,12 +1748,45 @@ export default function ControlPanel({
         disabled: layout.readOnly,
       },
       auto_connect_fk: {
-        function: autoConnectFKs,
+        function: () => setShowAutoConnectModal(true),
         disabled: layout.readOnly,
       },
       copy_as_image: {
         function: copyAsImage,
         shortcut: "Ctrl+Alt+C",
+      },
+    },
+    database: {
+      connect: {
+        function: openConnectionModal,
+        name: t("connect"),
+      },
+      apply_schema_to_postgres: {
+        function: () => setModal(MODAL.SCHEMA_SYNC),
+        disabled: !connected,
+      },
+      import_schema_from_postgres: {
+        function: () => setModal(MODAL.SCHEMA_IMPORT),
+        disabled: !connected,
+      },
+      update_schema_from_postgres: {
+        function: () => setModal(MODAL.SCHEMA_MIGRATION),
+        disabled: !connected,
+      },
+      sql_console: {
+        function: () =>
+          setSelectedElement((prev) => ({
+            ...prev,
+            currentTab: Tab.SQL_CONSOLE,
+          })),
+      },
+      data_browser: {
+        function: () =>
+          setSelectedElement((prev) => ({ ...prev, currentTab: Tab.DATA })),
+      },
+      disconnect: {
+        function: disconnect,
+        disabled: !connected,
       },
     },
     view: {
@@ -1762,6 +1807,15 @@ export default function ControlPanel({
         ),
         function: () =>
           setLayout((prev) => ({ ...prev, sidebar: !prev.sidebar })),
+      },
+      toolbar: {
+        state: layout.toolbar ? (
+          <i className="bi bi-toggle-on" />
+        ) : (
+          <i className="bi bi-toggle-off" />
+        ),
+        function: () =>
+          setLayout((prev) => ({ ...prev, toolbar: !prev.toolbar })),
       },
       issues: {
         state: layout.issues ? (
@@ -2351,6 +2405,16 @@ export default function ControlPanel({
                     {version.substring(0, 7)}
                   </Tag>
                 )}
+                {connected && (
+                  <Tag
+                    className="mt-1 cursor-pointer"
+                    color="green"
+                    size="small"
+                    onClick={() => openConnectionModal()}
+                  >
+                    PG: {connection.database ?? ""}
+                  </Tag>
+                )}
               </div>
               {(showEditName || modal === MODAL.RENAME) && !layout.readOnly && (
                 <IconEdit />
@@ -2479,7 +2543,11 @@ export default function ControlPanel({
                       </Dropdown.Menu>
                     }
                   >
-                    <div className="px-3 py-1 hover-2 rounded-sm">
+                    <div
+                      className={`px-3 py-1 hover-2 rounded-sm${
+                        category === "database" ? " pg-menu-trigger" : ""
+                      }`}
+                    >
                       {t(category)}
                     </div>
                   </Dropdown>

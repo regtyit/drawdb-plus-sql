@@ -15,3 +15,5 @@ export { default as useViews } from "./useViews";
 export { default as useThemedPage } from "./useThemedPage";
 export { default as useNavigateWithParams } from "./useNavigateWithParams";
 export { default as useCollab } from "./useCollab";
+export { default as usePostgres } from "./usePostgres";
+export { default as useModal } from "./useModal";

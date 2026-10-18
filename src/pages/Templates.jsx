@@ -26,7 +26,7 @@ export default function Templates() {
   };
 
   useEffect(() => {
-    document.title = "Templates | drawDB";
+    document.title = "Templates | drawdb-plus-sql";
   }, []);
 
   return (
@@ -178,8 +178,8 @@ export default function Templates() {
       </div>
       <hr className="border-zinc-300 my-1" />
       <div className="text-center text-sm py-3">
-        &copy; {new Date().getFullYear()} <strong>drawDB</strong> - All rights
-        reserved.
+        &copy; {new Date().getFullYear()} <strong>drawdb-plus-sql</strong> -
+        AGPL-3.0 fork of drawDB
       </div>
     </div>
   );

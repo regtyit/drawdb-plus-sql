@@ -10,6 +10,8 @@ import SettingsContextProvider from "../context/SettingsContext";
 import SaveStateContextProvider from "../context/SaveStateContext";
 import EnumsContextProvider from "../context/EnumsContext";
 import ViewsContextProvider from "../context/ViewsContext";
+import PostgresContextProvider from "../context/PostgresContext";
+import { ModalContextProvider } from "../context/ModalContext";
 import WorkSpace from "../components/Workspace";
 import { useThemedPage } from "../hooks";
 
@@ -18,29 +20,33 @@ export default function Editor() {
 
   return (
     <SettingsContextProvider>
-      <LayoutContextProvider>
-        <TransformContextProvider>
-          <UndoRedoContextProvider>
-            <SelectContextProvider>
-              <AreasContextProvider>
-                <NotesContextProvider>
-                  <TypesContextProvider>
-                    <EnumsContextProvider>
-                      <ViewsContextProvider>
-                        <TablesContextProvider>
-                          <SaveStateContextProvider>
-                            <WorkSpace />
-                          </SaveStateContextProvider>
-                        </TablesContextProvider>
-                      </ViewsContextProvider>
-                    </EnumsContextProvider>
-                  </TypesContextProvider>
-                </NotesContextProvider>
-              </AreasContextProvider>
-            </SelectContextProvider>
-          </UndoRedoContextProvider>
-        </TransformContextProvider>
-      </LayoutContextProvider>
+      <ModalContextProvider>
+        <LayoutContextProvider>
+          <TransformContextProvider>
+            <UndoRedoContextProvider>
+              <SelectContextProvider>
+                <AreasContextProvider>
+                  <NotesContextProvider>
+                    <TypesContextProvider>
+                      <EnumsContextProvider>
+                        <ViewsContextProvider>
+                          <PostgresContextProvider>
+                            <TablesContextProvider>
+                              <SaveStateContextProvider>
+                                <WorkSpace />
+                              </SaveStateContextProvider>
+                            </TablesContextProvider>
+                          </PostgresContextProvider>
+                        </ViewsContextProvider>
+                      </EnumsContextProvider>
+                    </TypesContextProvider>
+                  </NotesContextProvider>
+                </AreasContextProvider>
+              </SelectContextProvider>
+            </UndoRedoContextProvider>
+          </TransformContextProvider>
+        </LayoutContextProvider>
+      </ModalContextProvider>
     </SettingsContextProvider>
   );
 }

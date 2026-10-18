@@ -28,6 +28,8 @@ import { isRtl } from "../../i18n/utils/rtl";
 import i18n from "../../i18n/i18n";
 import DBMLEditor from "./DBMLEditor";
 import SqlHeaderTab from "./SqlHeaderTab";
+import PostgresTab from "./PostgresTab/PostgresTab";
+import DataTab from "./DataTab/DataTab";
 
 export default function SidePanel({ width, resize, setResize }) {
   const { layout, setLayout } = useLayout();
@@ -95,6 +97,27 @@ export default function SidePanel({ width, resize, setResize }) {
       });
     }
 
+    tabs.push({
+      tab: (
+        <span className="pg-tab">
+          {t("postgres_console")}
+          <span className="pg-badge">NEW</span>
+        </span>
+      ),
+      itemKey: Tab.SQL_CONSOLE,
+      component: <PostgresTab />,
+    });
+    tabs.push({
+      tab: (
+        <span className="pg-tab">
+          {t("data_browser")}
+          <span className="pg-badge">NEW</span>
+        </span>
+      ),
+      itemKey: Tab.DATA,
+      component: <DataTab />,
+    });
+
     return isRtl(i18n.language) ? tabs.reverse() : tabs;
   }, [
     t,
@@ -108,7 +131,9 @@ export default function SidePanel({ width, resize, setResize }) {
     notesCount,
   ]);
 
-  const fillHeight = selectedElement.currentTab === Tab.SQL_HEADER;
+  const fillHeight =
+    selectedElement.currentTab === Tab.SQL_HEADER ||
+    selectedElement.currentTab === Tab.SQL_CONSOLE;
 
   const setDbmlEditor = (value) => {
     setLayout((prev) => ({ ...prev, dbmlEditor: value }));
