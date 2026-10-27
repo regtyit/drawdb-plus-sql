@@ -16,6 +16,7 @@ export const tableSchema = {
           type: { type: "string" },
           default: { type: ["string", "number", "boolean"] },
           check: { type: "string" },
+          checkName: { type: "string" },
           primary: { type: "boolean" },
           unique: { type: "boolean" },
           notNull: { type: "boolean" },

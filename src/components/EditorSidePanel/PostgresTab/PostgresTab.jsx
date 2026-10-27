@@ -1,13 +1,21 @@
 import { useCallback, useRef, useState } from "react";
-import { Button, Spin, Tag } from "@douyinfe/semi-ui";
-import { IconPlay, IconRefresh, IconBolt } from "@douyinfe/semi-icons";
+import { Button, Modal, Spin, Tag } from "@douyinfe/semi-ui";
+import {
+  IconPlay,
+  IconRefresh,
+  IconBolt,
+  IconExport,
+  IconDownload,
+} from "@douyinfe/semi-icons";
 import { useTranslation } from "react-i18next";
-import { usePostgres } from "../../../hooks";
+import { usePostgres, useSchemaImport } from "../../../hooks";
 import { runQuery } from "../../../api/postgres";
+import { schemaSearchPath } from "../../../utils/postgres/schemaPath";
 import CodeEditor from "../../CodeEditor";
 import ResultGrid from "./ResultGrid";
 import PostgresHelpCard from "../../Postgres/HelpCard";
 import SqlTemplateBuilder from "./SqlTemplateBuilder";
+import FullScriptViewer from "./FullScriptViewer";
 
 function StatusBadge({ connected, database }) {
   const { t } = useTranslation();
@@ -29,7 +37,10 @@ export default function PostgresTab() {
   const [error, setError] = useState(null);
   const [executionTime, setExecutionTime] = useState(null);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showFullScript, setShowFullScript] = useState(false);
+  const [confirmImport, setConfirmImport] = useState(false);
   const editorRef = useRef(null);
+  const { importSchemas, importing } = useSchemaImport();
 
   const execute = useCallback(
     async (text) => {
@@ -45,7 +56,9 @@ export default function PostgresTab() {
       setResultSets([]);
       setExecutionTime(null);
       try {
-        const res = await runQuery(connection, statement);
+        const res = await runQuery(connection, statement, {
+          searchPath: schemaSearchPath(connection.schema),
+        });
         setResultSets(res.results ?? []);
         setNotices(res.notices ?? []);
         setExecutionTime(res.executionTimeMs ?? null);
@@ -185,20 +198,78 @@ export default function PostgresTab() {
           {t("clear")}
         </Button>
         {connected && (
-          <Button
-            size="small"
-            className="pg-menu-trigger"
-            icon={<IconBolt />}
-            onClick={() => setShowTemplates((prev) => !prev)}
-          >
-            {t("quick_sql_templates")}
-          </Button>
+          <>
+            <Button
+              size="small"
+              icon={<IconDownload />}
+              disabled={running}
+              onClick={() => setConfirmImport(true)}
+            >
+              {t("import_to_diagram")}
+            </Button>
+            <Button
+              size="small"
+              icon={<IconExport />}
+              disabled={running}
+              onClick={() => setShowFullScript(true)}
+            >
+              {t("sql_script_button")}
+            </Button>
+            <Button
+              size="small"
+              className="pg-menu-trigger"
+              icon={<IconBolt />}
+              onClick={() => setShowTemplates((prev) => !prev)}
+            >
+              {t("quick_sql_templates")}
+            </Button>
+          </>
         )}
       </div>
 
       <div className="text-[11px] opacity-50">{t("run_shortcut_hint")}</div>
 
       {!connected && <PostgresHelpCard />}
+      {connected && confirmImport && (
+        <Modal
+          title={t("import_confirm_title")}
+          visible
+          onCancel={() => setConfirmImport(false)}
+          footer={null}
+          width={440}
+        >
+          <div className="flex flex-col gap-3">
+            <div className="text-sm">
+              {t("import_confirm_body", {
+                schema: connection.schema || "public",
+              })}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                theme="borderless"
+                onClick={() => setConfirmImport(false)}
+              >
+                {t("cancel")}
+              </Button>
+              <Button
+                theme="solid"
+                loading={Boolean(importing)}
+                onClick={async () => {
+                  const ok = await importSchemas([
+                    connection.schema || "public",
+                  ]);
+                  if (ok) setConfirmImport(false);
+                }}
+              >
+                {t("import")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {connected && showFullScript && (
+        <FullScriptViewer onClose={() => setShowFullScript(false)} />
+      )}
       {!running && connected && showTemplates && (
         <SqlTemplateBuilder
           disabled={running}

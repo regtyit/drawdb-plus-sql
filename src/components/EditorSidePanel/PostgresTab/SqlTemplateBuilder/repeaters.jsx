@@ -8,6 +8,24 @@ import {
 } from "@douyinfe/semi-ui";
 import { IconDelete, IconPlus } from "@douyinfe/semi-icons";
 
+const COLUMN_TYPE_OPTIONS = [
+  "SERIAL",
+  "BIGSERIAL",
+  "INTEGER",
+  "BIGINT",
+  "NUMERIC",
+  "BOOLEAN",
+  "TEXT",
+  "VARCHAR",
+  "UUID",
+  "TIMESTAMP",
+  "TIMESTAMPTZ",
+  "DATE",
+  "JSONB",
+];
+
+export { COLUMN_TYPE_OPTIONS };
+
 const OPERATORS = [
   "=",
   "<>",
@@ -326,24 +344,6 @@ export function ListEditor({ value, onChange, t, columnData }) {
     </div>
   );
 }
-
-const COLUMN_TYPE_OPTIONS = [
-  "SERIAL",
-  "BIGSERIAL",
-  "INTEGER",
-  "BIGINT",
-  "NUMERIC",
-  "BOOLEAN",
-  "TEXT",
-  "VARCHAR",
-  "UUID",
-  "TIMESTAMP",
-  "TIMESTAMPTZ",
-  "DATE",
-  "JSONB",
-];
-
-export { COLUMN_TYPE_OPTIONS };
 
 function NameInput({ value, onChange, data, placeholder }) {
   if (data && data.length > 0) {

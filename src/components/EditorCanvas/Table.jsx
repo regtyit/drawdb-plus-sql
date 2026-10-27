@@ -618,6 +618,11 @@ function FieldSummary({ field: e, tableId, database }) {
           {t("unique")}
         </Tag>
       )}
+      {e.check?.trim() && (
+        <Tag color="cyan" className="me-2 my-2" title={e.check}>
+          {t("check_constraint")}
+        </Tag>
+      )}
       {e.notNull && (
         <Tag color="purple" className="me-2 my-2">
           {t("not_null")}

@@ -125,6 +125,7 @@ const en = {
     autoincrement: "Autoincrement",
     default_value: "Default",
     check: "Check expression",
+    check_constraint: "Check",
     this_will_appear_as_is: "*This will appear in the generated script as is.",
     comment: "Comment",
     add: "Add",
@@ -325,6 +326,13 @@ const en = {
     test_connection: "Test connection",
     testing: "Testing...",
     connection_successful: "Connection successful",
+    database_name_hint: "Type a new name and select it to create the database.",
+    database_name_invalid:
+      "Invalid database name. Use letters, digits and underscores, starting with a letter or underscore.",
+    database_created: 'Database "{{name}}" created',
+    database_create_failed: "Could not create the database",
+    creating_database: "Creating database...",
+    reload_databases: "Reload database list",
     not_connected: "Not connected to PostgreSQL",
     not_connected_hint:
       "Connect to a PostgreSQL database to run SQL, browse data and sync your schema.",
@@ -344,6 +352,8 @@ const en = {
     import_schema_from_postgres: "Import schema from PostgreSQL",
     apply_schema_description:
       "Generate DDL from this diagram and execute it against the connected database.",
+    apply_existing_table_hint:
+      "Applies to missing objects only. To add or change columns and CHECK constraints on existing tables, use Update schema.",
     import_schema_description:
       "Read the schema of a live database and load it as an editable diagram.",
     recreate_schema: "Drop existing objects and recreate",
@@ -360,6 +370,14 @@ const en = {
     apply_success: "Schema applied successfully",
     apply_error: "Failed to apply schema",
     import_success: "Schema imported successfully",
+    import_success_details:
+      "Imported {{tables}} tables and {{relations}} relationships",
+    import_success_details_s: "Imported {{tables}} tables and one relationship",
+    import_to_diagram: "Import to diagram",
+    import_confirm_title: "Import the live schema?",
+    import_confirm_body:
+      'This replaces the current diagram with the live schema of "{{schema}}" — everything you created in the SQL console will appear on the canvas.',
+    connect_required_hint: "Connect to PostgreSQL first.",
     import_error: "Failed to import schema",
     importing: "Importing...",
     applying: "Applying...",
@@ -397,9 +415,21 @@ const en = {
     sql_quick_hint:
       "Click a template to append its SQL to the editor, or open the form builder to customize it.",
     sql_form_builder: "Form builder",
+    sql_script_button: "SQL script",
+    full_script_title: "Full SQL script",
+    full_script_description:
+      "Everything you need to run this design on a fresh PostgreSQL database: table initialization mirrored from the connected database, recent seed data, and the pending diagram operations.",
+    seed_data: "Seed data",
+    rows_per_table: "Rows per table",
+    include_drops: "Include DROP statements",
+    no_pending_operations:
+      "No pending operations — the diagram matches the database.",
+    script_run_success: "Script executed",
     sql_cat_ddl: "DDL",
+    sql_cat_checks: "Checks",
     sql_cat_dql: "Queries",
     sql_cat_dml: "Data",
+    sql_cat_dates: "Dates",
     sql_cat_dcl: "Permissions",
     sql_cat_tcl: "Transactions",
     sql_cat_jsonb: "JSONB",
@@ -422,6 +452,7 @@ const en = {
     migration_group_primary_key: "Primary keys",
     migration_group_foreign_key: "Foreign keys",
     migration_group_index: "Indexes",
+    migration_group_check: "Checks",
     migration_group_enum: "Enums",
     migration_group_type: "Types",
     migration_safe_only: "Safe changes only (no drops)",
@@ -434,6 +465,33 @@ const en = {
     database_menu: "Database",
     connection_error: "Connection failed",
     apply: "Apply",
+    validate: "Validate",
+    validating: "Validating...",
+    validate_success:
+      "SQL is valid — nothing was modified (checks run in a rolled-back transaction).",
+    preflight_checking: "Checking this diagram against PostgreSQL...",
+    preflight_error: "SQL validation failed — nothing was changed",
+    migration_load_error: "Could not read the database schema",
+    preflight_ok:
+      "Validated against PostgreSQL. Nothing was changed; you can apply safely.",
+    diagram_issues_title: "PostgreSQL cannot run this diagram as-is",
+    diagram_issue_check_other:
+      'CHECK on {{table}}.{{field}} references table "{{ref}}". PostgreSQL CHECK constraints can only see their own row, so cross-table checks are not supported.',
+    diagram_issue_check_qualified:
+      "CHECK on {{table}}.{{field}} uses a table-qualified column name. PostgreSQL CHECK constraints must reference plain column names.",
+    diagram_issue_check_subquery:
+      "CHECK on {{table}}.{{field}} contains a subquery. PostgreSQL CHECK constraints cannot query other tables.",
+    diagram_issue_fk_reversed:
+      "Foreign key {{from}} → {{to}} is drawn backwards: {{to}} is not unique. Reverse it so the child table ({{from}}) points at the parent's primary key.",
+    diagram_issue_fk_missing_unique:
+      "Foreign key {{from}} → {{to}} references columns that are not unique. Add a UNIQUE constraint or point it at a primary key.",
+    fix_diagram: "Fix diagram automatically",
+    fix_diagram_hint:
+      "Removes unsupported CHECK constraints and reverses inverted foreign keys. Undo with Ctrl+Z.",
+    fix_diagram_none:
+      "Nothing can be fixed automatically — edit these items in the canvas.",
+    fix_diagram_success:
+      "Fixed {{count}} issue(s). Re-checking the generated SQL...",
     position: "Position",
     configure_custom_types: "Configure custom types",
     type_color: "Color",

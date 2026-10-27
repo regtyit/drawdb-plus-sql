@@ -74,6 +74,23 @@ const CONSTRAINTS_SQL = `
   ORDER BY con.conname
 `;
 
+const CHECKS_SQL = `
+  SELECT
+    con.conname AS name,
+    n.nspname AS schema,
+    c.relname AS table,
+    pg_get_expr(con.conbin, con.conrelid) AS expression,
+    (SELECT array_agg(a.attname::text ORDER BY k.ord)
+       FROM unnest(con.conkey) WITH ORDINALITY k(attnum, ord)
+       JOIN pg_attribute a ON a.attrelid = con.conrelid AND a.attnum = k.attnum) AS columns
+  FROM pg_constraint con
+  JOIN pg_class c ON c.oid = con.conrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE con.contype = 'c'
+    AND n.nspname = ANY($1)
+  ORDER BY n.nspname, c.relname, con.conname
+`;
+
 const INDEXES_SQL = `
   SELECT
     n.nspname AS schema,
@@ -151,6 +168,7 @@ export async function introspect(connection, options = {}) {
       columns,
       tableComments,
       constraints,
+      checks,
       indexes,
       enums,
       composites,
@@ -160,6 +178,7 @@ export async function introspect(connection, options = {}) {
       client.query(COLUMNS_SQL, [schemas]),
       client.query(TABLE_COMMENTS_SQL, [schemas]),
       client.query(CONSTRAINTS_SQL, [schemas]),
+      client.query(CHECKS_SQL, [schemas]),
       client.query(INDEXES_SQL, [schemas]),
       client.query(ENUMS_SQL, [schemas]),
       client.query(COMPOSITE_TYPES_SQL, [schemas]),
@@ -282,6 +301,13 @@ export async function introspect(connection, options = {}) {
       primaryKeys,
       uniques,
       foreignKeys,
+      checks: checks.rows.map((row) => ({
+        schema: row.schema,
+        table: row.table,
+        name: row.name,
+        expression: row.expression ?? "",
+        columns: row.columns ?? [],
+      })),
       indexes: indexesOut,
       enums: [...enumsMap.values()],
       types: [...typesMap.values()],

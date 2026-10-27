@@ -1,6 +1,8 @@
 import { templates as ddl } from "./ddl";
+import { templates as checks } from "./checks";
 import { templates as dql } from "./dql";
 import { templates as dml } from "./dml";
+import { templates as dates } from "./dates";
 import { templates as dcl } from "./dcl";
 import { templates as tcl } from "./tcl";
 import { templates as jsonb } from "./jsonb";
@@ -8,8 +10,10 @@ import { templates as logic } from "./logic";
 
 export const sqlCategories = [
   { id: "ddl", labelKey: "sql_cat_ddl" },
+  { id: "checks", labelKey: "sql_cat_checks" },
   { id: "dql", labelKey: "sql_cat_dql" },
   { id: "dml", labelKey: "sql_cat_dml" },
+  { id: "dates", labelKey: "sql_cat_dates" },
   { id: "dcl", labelKey: "sql_cat_dcl" },
   { id: "tcl", labelKey: "sql_cat_tcl" },
   { id: "jsonb", labelKey: "sql_cat_jsonb" },
@@ -18,8 +22,10 @@ export const sqlCategories = [
 
 export const sqlTemplates = [
   ...ddl,
+  ...checks,
   ...dql,
   ...dml,
+  ...dates,
   ...dcl,
   ...tcl,
   ...jsonb,

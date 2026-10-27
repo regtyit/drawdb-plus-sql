@@ -68,6 +68,22 @@ npm run dev          # starts web app (:3148) and the postgres API (:5001) toget
 
 Then open `http://localhost:3148`, click **Connect** → **Connect to PostgreSQL** and enter your connection details.
 
+### Run modes: private vs public
+
+Two launcher scripts manage everything (web app, companion API, and the security posture) in one command:
+
+```bash
+npm run start:private   # everything on localhost — only this machine can use it
+npm run start:public    # web app + API reachable from the local network, token protected
+npm run server:stop     # stop everything
+npm run server:status   # what is running, and where PostgreSQL is listening
+```
+
+- **private**: the web app and the API bind to `127.0.0.1` only. Use this on your own laptop or workstation.
+- **public**: the web app and the API bind to `0.0.0.0`, and CORS is fully open, so any device on your network can open the web app. The script generates a random `POSTGRES_API_TOKEN` (or reuses the one in `server/.env`) and pairs it into `public/config.js`, which browsers read at page load — no manual setup. **PostgreSQL itself must stay loopback-only** (the default `listen_addresses = 'localhost'`); the script checks this and warns loudly if port 5432 is ever exposed. `server/.env` and `public/config.js` are runtime files and are git-ignored — never commit them.
+
+PostgreSQL is never exposed by this project: every query goes browser → companion API → your database.
+
 ### Build
 
 ```bash

@@ -23,3 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Runtime deployment config (may embed the API token — never commit)
+public/config.js

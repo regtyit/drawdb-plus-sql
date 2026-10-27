@@ -123,6 +123,36 @@ export default function Modal({
     setSqlHeader(importData.sqlHeader ?? "");
   };
 
+  const applyImportedDiagram = (diagramData) => {
+    if (importSource.overwrite) {
+      setTables(diagramData.tables);
+      setRelationships(diagramData.relationships);
+      if (databases[database].hasTypes) setTypes(diagramData.types ?? []);
+      if (databases[database].hasEnums) setEnums(diagramData.enums ?? []);
+      setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
+      setNotes([]);
+      setAreas([]);
+      setViews([]);
+    } else {
+      setTables((prev) => [...prev, ...diagramData.tables]);
+      setRelationships((prev) =>
+        [...prev, ...diagramData.relationships].map((r, i) => ({
+          ...r,
+          id: i,
+        })),
+      );
+      if (databases[database].hasTypes && diagramData.types.length)
+        setTypes((prev) => [...prev, ...diagramData.types]);
+      if (databases[database].hasEnums && diagramData.enums.length)
+        setEnums((prev) => [...prev, ...diagramData.enums]);
+    }
+
+    setUndoStack([]);
+    setRedoStack([]);
+
+    setModal(MODAL.NONE);
+  };
+
   const parseSQLAndLoadDiagram = () => {
     const targetDatabase = database === DB.GENERIC ? importDb : database;
 
@@ -167,36 +197,6 @@ export default function Modal({
         message: t("check_syntax_errors"),
       });
     }
-  };
-
-  const applyImportedDiagram = (diagramData) => {
-    if (importSource.overwrite) {
-      setTables(diagramData.tables);
-      setRelationships(diagramData.relationships);
-      if (databases[database].hasTypes) setTypes(diagramData.types ?? []);
-      if (databases[database].hasEnums) setEnums(diagramData.enums ?? []);
-      setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
-      setNotes([]);
-      setAreas([]);
-      setViews([]);
-    } else {
-      setTables((prev) => [...prev, ...diagramData.tables]);
-      setRelationships((prev) =>
-        [...prev, ...diagramData.relationships].map((r, i) => ({
-          ...r,
-          id: i,
-        })),
-      );
-      if (databases[database].hasTypes && diagramData.types.length)
-        setTypes((prev) => [...prev, ...diagramData.types]);
-      if (databases[database].hasEnums && diagramData.enums.length)
-        setEnums((prev) => [...prev, ...diagramData.enums]);
-    }
-
-    setUndoStack([]);
-    setRedoStack([]);
-
-    setModal(MODAL.NONE);
   };
 
   const importSourceWithAi = async () => {

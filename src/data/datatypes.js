@@ -1005,7 +1005,7 @@ const postgresTypesBase = {
     checkDefault: (field) => {
       return /^[0-9a-fA-F]*$/.test(field.default);
     },
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     defaultSize: null,
@@ -1032,7 +1032,7 @@ const postgresTypesBase = {
         specialValues.includes(field.default.toLowerCase())
       );
     },
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1047,7 +1047,7 @@ const postgresTypesBase = {
         specialValues.includes(field.default.toLowerCase())
       );
     },
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1063,7 +1063,7 @@ const postgresTypesBase = {
         ) || specialValues.includes(field.default.toLowerCase())
       );
     },
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1091,7 +1091,7 @@ const postgresTypesBase = {
         specialValues.includes(field.default.toLowerCase())
       );
     },
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1116,7 +1116,7 @@ const postgresTypesBase = {
         ) || specialValues.includes(field.default.toLowerCase())
       );
     },
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1125,7 +1125,7 @@ const postgresTypesBase = {
     type: "INTERVAL",
     color: dateColor,
     checkDefault: (field) => /^['"\d\s\\-]+$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1134,7 +1134,7 @@ const postgresTypesBase = {
     type: "BOOLEAN",
     color: booleanColor,
     checkDefault: (field) => /^(true|false)$/i.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: false,
@@ -1143,7 +1143,7 @@ const postgresTypesBase = {
     type: "POINT",
     color: geometricColor,
     checkDefault: (field) => /^\(\d+,\d+\)$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: false,
@@ -1152,7 +1152,7 @@ const postgresTypesBase = {
     type: "LINE",
     color: geometricColor,
     checkDefault: (field) => /^(\(\d+,\d+\),)+\(\d+,\d+\)$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: false,
@@ -1161,7 +1161,7 @@ const postgresTypesBase = {
     type: "LSEG",
     color: geometricColor,
     checkDefault: (field) => /^(\(\d+,\d+\),)+\(\d+,\d+\)$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: false,
@@ -1173,7 +1173,7 @@ const postgresTypesBase = {
       /^\(\d+(\.\d+)?,\d+(\.\d+)?\),\(\d+(\.\d+)?,\d+(\.\d+)?\)$/.test(
         field.default,
       ),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1185,7 +1185,7 @@ const postgresTypesBase = {
       /^\((\d+(\.\d+)?,\d+(\.\d+)?(,\d+(\.\d+)?,\d+(\.\d+)?)*?)\)$/.test(
         field.default,
       ),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1197,7 +1197,7 @@ const postgresTypesBase = {
       /^\((\d+(\.\d+)?,\d+(\.\d+)?(,\d+(\.\d+)?,\d+(\.\d+)?)*?)\)$/.test(
         field.default,
       ),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1207,7 +1207,7 @@ const postgresTypesBase = {
     color: geometricColor,
     checkDefault: (field) =>
       /^<\(\d+(\.\d+)?,\d+(\.\d+)?\),\d+(\.\d+)?\\>$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1217,7 +1217,7 @@ const postgresTypesBase = {
     color: networkIdColor,
     checkDefault: (field) =>
       /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1227,7 +1227,7 @@ const postgresTypesBase = {
     color: networkIdColor,
     checkDefault: (field) =>
       /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1237,7 +1237,7 @@ const postgresTypesBase = {
     color: networkIdColor,
     checkDefault: (field) =>
       /^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1247,7 +1247,7 @@ const postgresTypesBase = {
     color: networkIdColor,
     checkDefault: (field) =>
       /^([A-Fa-f0-9]{2}:){7}[A-Fa-f0-9]{2}$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1343,7 +1343,7 @@ const postgresTypesBase = {
     type: "TSVECTOR",
     color: otherColor,
     checkDefault: (field) => /^[A-Za-z0-9: ]*$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: false,
@@ -1352,7 +1352,7 @@ const postgresTypesBase = {
     type: "TSQUERY",
     color: otherColor,
     checkDefault: (field) => /^[A-Za-z0-9: &|!()]*$/.test(field.default),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: false,
@@ -1361,7 +1361,7 @@ const postgresTypesBase = {
     type: "JSON",
     color: documentColor,
     checkDefault: (field) => true,
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1371,7 +1371,7 @@ const postgresTypesBase = {
     type: "JSONB",
     color: documentColor,
     checkDefault: (field) => true,
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1384,7 +1384,7 @@ const postgresTypesBase = {
       /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(
         field.default,
       ),
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,
@@ -1394,7 +1394,7 @@ const postgresTypesBase = {
     type: "XML",
     color: documentColor,
     checkDefault: (field) => true,
-    hasCheck: false,
+    hasCheck: true,
     isSized: false,
     hasPrecision: false,
     hasQuotes: true,

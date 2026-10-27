@@ -55,6 +55,36 @@ const server = app.listen(PORT, HOST, () => {
   );
 });
 
+server.on("error", async (err) => {
+  if (err?.code === "EADDRINUSE") {
+    let ours = false;
+    try {
+      const res = await fetch(`http://127.0.0.1:${PORT}/health`);
+      const body = await res.json().catch(() => ({}));
+      ours = res.ok && body?.service === "drawdb-postgres-api";
+    } catch {
+      ours = false;
+    }
+    console.log("");
+    if (ours) {
+      console.log(
+        `An instance of the drawdb-plus-sql API is already running on port ${PORT} — the web app will keep using it.`,
+      );
+      console.log(
+        "Stop it first with:  npm run server:stop   (or check: npm run server:status)",
+      );
+      console.log("");
+      process.exit(0);
+    }
+    console.log(
+      `Port ${PORT} is already in use by another program. Free it or set POSTGRES_API_PORT in server/.env, then retry.`,
+    );
+    console.log("");
+    process.exit(1);
+  }
+  throw err;
+});
+
 async function shutdown() {
   server.close();
   await closeAllPools();

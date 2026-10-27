@@ -30,7 +30,7 @@ export default function TableField({ data, tid, index, inherited }) {
     <div className="hover-1 my-2 flex gap-2 items-center">
       <DragHandle readOnly={layout.readOnly} id={data.id} />
 
-      <div className="min-w-20 flex-1/3">
+      <div className="min-w-20 flex-1/3 flex items-center gap-1">
         <Input
           value={data.name}
           id={`scroll_table_${tid}_input_${index}`}
@@ -62,6 +62,14 @@ export default function TableField({ data, tid, index, inherited }) {
             setRedoStack([]);
           }}
         />
+        {data.check?.trim() && (
+          <span
+            className="text-[9px] font-semibold uppercase opacity-60 border border-color rounded px-1 shrink-0"
+            title={data.check}
+          >
+            {t("check_constraint")}
+          </span>
+        )}
       </div>
 
       <div className="min-w-24 flex-1/3">

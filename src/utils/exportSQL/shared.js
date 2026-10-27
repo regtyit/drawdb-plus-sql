@@ -23,7 +23,8 @@ export function parseDefault(field, database = DB.GENERIC) {
   if (
     isFunction(field.default) ||
     isKeyword(field.default) ||
-    (typeInfo && !typeInfo.hasQuotes)
+    (typeInfo && !typeInfo.hasQuotes) ||
+    isExpressionDefault(field.default)
   ) {
     return field.default;
   }
@@ -31,12 +32,27 @@ export function parseDefault(field, database = DB.GENERIC) {
   return `'${escapeQuotes(field.default)}'`;
 }
 
+/**
+ * A default string that is already a self-sufficient SQL expression and must
+ * be emitted verbatim instead of being wrapped in quotes again:
+ * fully-quoted literals ('x'), cast expressions ('{}'::jsonb), ARRAY[...].
+ */
+function isExpressionDefault(value) {
+  const trimmed = value.trim();
+  if (trimmed.length < 2) return false;
+  return (
+    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
+    trimmed.includes("::") ||
+    /^ARRAY\[/i.test(trimmed)
+  );
+}
+
 export function escapeQuotes(str) {
   return str.replace(/[']/g, "'$&");
 }
 
 export function exportFieldComment(comment) {
-  if (comment === "") {
+  if (typeof comment !== "string" || comment === "") {
     return "";
   }
 
@@ -70,17 +86,15 @@ export function getInlineFK(table, obj) {
   obj.references.forEach((r) => {
     if (r.startTableId === table.id) {
       const endTable = obj.tables.find((t) => t.id === r.endTableId);
-      const { startColumns, endColumns } = getFkColumnNames(
-        r,
-        table,
-        endTable,
-      );
+      const { startColumns, endColumns } = getFkColumnNames(r, table, endTable);
       fks.push(
         `\tFOREIGN KEY (${startColumns
           .map((c) => `"${c}"`)
           .join(", ")}) REFERENCES "${endTable?.name}"(${endColumns
           .map((c) => `"${c}"`)
-          .join(", ")})\n\tON UPDATE ${r.updateConstraint.toUpperCase()} ON DELETE ${r.deleteConstraint.toUpperCase()}`,
+          .join(
+            ", ",
+          )})\n\tON UPDATE ${r.updateConstraint.toUpperCase()} ON DELETE ${r.deleteConstraint.toUpperCase()}`,
       );
     }
   });

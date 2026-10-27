@@ -53,7 +53,11 @@ postgresRouter.post(
     const maxRows = Number.isInteger(req.body?.maxRows)
       ? req.body.maxRows
       : undefined;
-    return runQuery(connection, sql, { params, maxRows });
+    return runQuery(connection, sql, {
+      params,
+      maxRows,
+      searchPath: req.body?.searchPath,
+    });
   }),
 );
 
@@ -63,6 +67,87 @@ postgresRouter.post(
     const connection = pickConnection(req.body?.connection);
     const schemas = await getSchemas(connection);
     return { schemas };
+  }),
+);
+
+/**
+ * Database management works through a "maintenance" connection (the default
+ * `postgres` database) so it does not depend on the database selected in the
+ * connect form. Falls back to `template1` for clusters where `postgres` does
+ * not exist.
+ */
+const MAINTENANCE_DATABASES = ["postgres", "template1"];
+
+const CONNECTION_META_KEYS = ["host", "port", "user", "password", "ssl"];
+
+async function withMaintenanceClient(rawConnection, fn) {
+  const connection = {};
+  for (const key of CONNECTION_META_KEYS) {
+    if (key in rawConnection) connection[key] = rawConnection[key];
+  }
+  if (!connection.host) throw new Error("Connection host is required");
+  if (!connection.user) throw new Error("Connection user is required");
+  let lastError;
+  for (const database of MAINTENANCE_DATABASES) {
+    try {
+      return await withClient({ ...connection, database }, fn);
+    } catch (err) {
+      lastError = err;
+      if (err?.code !== "3D000") throw err;
+    }
+  }
+  throw lastError;
+}
+
+const DATABASE_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_$]{0,62}$/;
+
+function pickMaintenanceConnection(body) {
+  if (!body?.connection || typeof body.connection !== "object") {
+    throw new Error("Missing connection configuration");
+  }
+  return body.connection;
+}
+
+postgresRouter.post(
+  "/databases",
+  handle(async (req) => {
+    const connection = pickMaintenanceConnection(req.body);
+    const { rows } = await withMaintenanceClient(connection, (client) =>
+      client.query(
+        `SELECT datname AS name,
+                pg_get_userbyid(datdba) AS owner,
+                pg_encoding_to_char(encoding) AS encoding
+         FROM pg_database
+         WHERE NOT datistemplate
+         ORDER BY datname`,
+      ),
+    );
+    return {
+      databases: rows.map((row) => ({
+        name: row.name,
+        owner: row.owner,
+        encoding: row.encoding,
+      })),
+    };
+  }),
+);
+
+postgresRouter.post(
+  "/databases/create",
+  handle(async (req) => {
+    const connection = pickMaintenanceConnection(req.body);
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    if (!DATABASE_NAME_PATTERN.test(name)) {
+      throw new Error(
+        `Invalid database name "${name}". Use letters, digits and underscores, starting with a letter or underscore.`,
+      );
+    }
+    // CREATE DATABASE cannot run inside a transaction block, and the name is
+    // never parameterizable (utility statement), hence the quoted identifier.
+    await withMaintenanceClient(connection, (client) =>
+      client.query(`CREATE DATABASE ${quoteIdent(name)}`),
+    );
+    return { name };
   }),
 );
 

@@ -172,6 +172,10 @@ export function normalizeError(err) {
 export async function runQuery(connection, sql, options = {}) {
   const params = options.params ?? [];
   const maxRows = options.maxRows ?? MAX_ROWS;
+  const searchPath =
+    typeof options.searchPath === "string" && options.searchPath.trim() !== ""
+      ? options.searchPath.trim()
+      : null;
   const pool = getPool(connection);
   const client = await pool.connect();
   const notices = [];
@@ -185,7 +189,17 @@ export async function runQuery(connection, sql, options = {}) {
     });
   client.on("notice", onNotice);
   const startedAt = Date.now();
+  let previousSearchPath = null;
   try {
+    if (searchPath) {
+      // Remember the session value so this pooled client does not leak the
+      // target schema into the next request.
+      const { rows } = await client.query("SHOW search_path");
+      previousSearchPath = rows[0]?.search_path ?? null;
+      await client.query("SELECT set_config('search_path', $1, false)", [
+        searchPath,
+      ]);
+    }
     const raw =
       params.length > 0
         ? await client.query({ text: sql, values: params })
@@ -194,10 +208,53 @@ export async function runQuery(connection, sql, options = {}) {
     const results = (Array.isArray(raw) ? raw : [raw]).map((result) =>
       normalizeResult(result, maxRows),
     );
+    // A script may open a transaction without closing it (e.g. hand-written
+    // BEGIN without COMMIT). Returning that client to the pool with an open
+    // transaction leaks its locks and state to the next borrower.
+    await cleanupTransaction(client, sql);
     return { results, notices, executionTimeMs };
+  } catch (err) {
+    // A failed batch inside a transaction leaves the client in an aborted
+    // state ("current transaction is aborted...") which would poison the
+    // pool. Always try to roll back on failure; harmless if no transaction.
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* no open transaction */
+    }
+    throw err;
   } finally {
+    if (previousSearchPath !== null) {
+      try {
+        await client.query("SELECT set_config('search_path', $1, false)", [
+          previousSearchPath,
+        ]);
+      } catch {
+        /* client already gone */
+      }
+    }
     client.removeListener("notice", onNotice);
     client.release();
+  }
+}
+
+/**
+ * Roll back only when the executed script explicitly opened a transaction
+ * and did not finish it itself, so intentional BEGIN…COMMIT scripts and
+ * statements outside transactions are untouched.
+ */
+async function cleanupTransaction(client, sql) {
+  if (
+    !/\bBEGIN\b/i.test(sql) ||
+    /\bCOMMIT\b/i.test(sql) ||
+    /\bROLLBACK\b/i.test(sql)
+  ) {
+    return;
+  }
+  try {
+    await client.query("ROLLBACK");
+  } catch {
+    /* no open transaction */
   }
 }
 

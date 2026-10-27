@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { Cardinality, DB } from "../../data/constants";
 import { dbToTypes } from "../../data/datatypes";
+import { normalizeCheckExpression } from "./checks";
 
 const PG_TYPE_ALIASES = {
   smallint: "SMALLINT",
@@ -73,6 +74,15 @@ function resolveTypeName(name) {
   return null;
 }
 
+function customTypeKey(base) {
+  let name = base.includes(".") ? base.slice(base.lastIndexOf(".") + 1) : base;
+  name = name.trim();
+  if (name.startsWith('"') && name.endsWith('"')) {
+    name = name.slice(1, -1).replace(/""/g, '"');
+  }
+  return name.toLowerCase();
+}
+
 function parseTypeColumn(column, customTypes) {
   const raw = column.dataType ?? "";
   const isArray = /\[\]/.test(raw) || Boolean(column.isArray);
@@ -81,7 +91,7 @@ function parseTypeColumn(column, customTypes) {
   const size = sizeMatch ? sizeMatch[1].replace(/\s+/g, "") : "";
   const base = noArray.replace(/\([^)]*\)/, "").trim();
 
-  const custom = customTypes.get(base.toLowerCase());
+  const custom = customTypes.get(customTypeKey(base));
   if (custom) {
     return { type: custom, size: "", isArray };
   }
@@ -136,6 +146,12 @@ export function catalogToDiagram(catalog) {
       (u) => `${tableKey(u.schema, u.table)}.${u.name}`,
     ),
   );
+  const checksByTable = new Map();
+  for (const check of catalog.checks ?? []) {
+    const key = tableKey(check.schema, check.table);
+    if (!checksByTable.has(key)) checksByTable.set(key, []);
+    checksByTable.get(key).push(check);
+  }
   for (const idx of catalog.indexes ?? []) {
     const key = tableKey(idx.schema, idx.table);
     if (!indexesByTable.has(key)) indexesByTable.set(key, []);
@@ -177,6 +193,27 @@ export function catalogToDiagram(catalog) {
       if (isArray) field.isArray = true;
       return field;
     });
+
+    // PostgreSQL stores named CHECK constraints at table level. drawDB edits
+    // checks per field, so attach each expression to the first column it
+    // references; multi-column checks still round-trip as table checks.
+    for (const check of checksByTable.get(key) ?? []) {
+      const expression = normalizeCheckExpression(check.expression);
+      if (!expression) continue;
+      const field = (check.columns ?? [])
+        .map((column) => fields.find((item) => item.name === column))
+        .find(Boolean);
+      if (!field) continue;
+      if (!field.check) {
+        field.check = expression;
+        field.checkName = check.name;
+      } else {
+        field.check = `(${field.check}) AND (${expression})`;
+        // The combined expression can no longer be written back as a single
+        // named constraint, so let the migration pick a fresh name.
+        delete field.checkName;
+      }
+    }
 
     const indices = (indexesByTable.get(key) ?? [])
       .filter((idx) => !uniqueConstraintNames.has(`${key}.${idx.name}`))

@@ -7,7 +7,7 @@ import {
   InputNumber,
   Checkbox,
 } from "@douyinfe/semi-ui";
-import { Action, ObjectType } from "../../../data/constants";
+import { Action, DB, ObjectType } from "../../../data/constants";
 import { IconDeleteStroked } from "@douyinfe/semi-icons";
 import { useDiagram, useLayout, useUndoRedo } from "../../../hooks";
 import { useTranslation } from "react-i18next";
@@ -19,6 +19,9 @@ export default function FieldDetails({ data, tid }) {
   const { layout } = useLayout();
   const { tables, database } = useDiagram();
   const resolved = resolveType(database, data.type);
+  // PostgreSQL accepts CHECK on any column type, including DATE and custom
+  // types. Other databases only expose the editor for types that support it.
+  const canCheck = database === DB.POSTGRES || resolved.hasCheck;
   const { setUndoStack, setRedoStack } = useUndoRedo();
   const { updateField, deleteField } = useDiagram();
   const [editField, setEditField] = useState({});
@@ -172,7 +175,7 @@ export default function FieldDetails({ data, tid }) {
           />
         </>
       )}
-      {resolved.hasCheck && (
+      {canCheck && (
         <>
           <div className="font-semibold">{t("check")}</div>
           <Input
@@ -242,9 +245,7 @@ export default function FieldDetails({ data, tid }) {
         <Checkbox
           value="increment"
           checked={data.increment}
-          disabled={
-            !resolved.canIncrement || data.isArray || layout.readOnly
-          }
+          disabled={!resolved.canIncrement || data.isArray || layout.readOnly}
           onChange={(checkedValues) => {
             setUndoStack((prev) => [
               ...prev,
@@ -311,45 +312,42 @@ export default function FieldDetails({ data, tid }) {
           />
         </div>
       )}
-      {databases[database].hasUnsignedTypes &&
-        resolved.signed && (
-          <div className="flex justify-between items-center my-3">
-            <div className="font-medium">{t("unsigned")}</div>
-            <Checkbox
-              value="unsigned"
-              checked={data.unsigned}
-              disabled={layout.readOnly}
-              onChange={(checkedValues) => {
-                setUndoStack((prev) => [
-                  ...prev,
-                  {
-                    action: Action.EDIT,
-                    element: ObjectType.TABLE,
-                    component: "field",
-                    tid: tid,
-                    fid: data.id,
-                    undo: {
-                      [checkedValues.target.value]:
-                        !checkedValues.target.checked,
-                    },
-                    redo: {
-                      [checkedValues.target.value]:
-                        checkedValues.target.checked,
-                    },
-                    message: t("edit_table", {
-                      tableName: table.name,
-                      extra: "[field]",
-                    }),
+      {databases[database].hasUnsignedTypes && resolved.signed && (
+        <div className="flex justify-between items-center my-3">
+          <div className="font-medium">{t("unsigned")}</div>
+          <Checkbox
+            value="unsigned"
+            checked={data.unsigned}
+            disabled={layout.readOnly}
+            onChange={(checkedValues) => {
+              setUndoStack((prev) => [
+                ...prev,
+                {
+                  action: Action.EDIT,
+                  element: ObjectType.TABLE,
+                  component: "field",
+                  tid: tid,
+                  fid: data.id,
+                  undo: {
+                    [checkedValues.target.value]: !checkedValues.target.checked,
                   },
-                ]);
-                setRedoStack([]);
-                updateField(tid, data.id, {
-                  unsigned: checkedValues.target.checked,
-                });
-              }}
-            />
-          </div>
-        )}
+                  redo: {
+                    [checkedValues.target.value]: checkedValues.target.checked,
+                  },
+                  message: t("edit_table", {
+                    tableName: table.name,
+                    extra: "[field]",
+                  }),
+                },
+              ]);
+              setRedoStack([]);
+              updateField(tid, data.id, {
+                unsigned: checkedValues.target.checked,
+              });
+            }}
+          />
+        </div>
+      )}
       <div className="font-semibold">{t("comment")}</div>
       <TextArea
         className="my-2"

@@ -7,5 +7,6 @@ export default defineConfig({
   server: {
     port: 3148,
     strictPort: true,
+    host: true,
   },
 });

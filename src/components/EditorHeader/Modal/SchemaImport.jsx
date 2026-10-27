@@ -1,39 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { Button, Select, Spin, Toast } from "@douyinfe/semi-ui";
+import { Button, Select, Spin } from "@douyinfe/semi-ui";
 import { useTranslation } from "react-i18next";
-import {
-  useAreas,
-  useDiagram,
-  useEnums,
-  useNotes,
-  usePostgres,
-  useTransform,
-  useTypes,
-  useUndoRedo,
-  useViews,
-} from "../../../hooks";
-import { DB, MODAL } from "../../../data/constants";
-import { introspectSchema } from "../../../api/postgres";
+import { usePostgres, useSchemaImport } from "../../../hooks";
+import { MODAL } from "../../../data/constants";
 import { getSchemas } from "../../../api/postgres";
-import { catalogToDiagram } from "../../../utils/postgres/introspect";
 
 export default function SchemaImport({ setModal }) {
   const { t } = useTranslation();
-  const { setTables, setRelationships, setDatabase, setSqlHeader } =
-    useDiagram();
-  const { setEnums } = useEnums();
-  const { setTypes } = useTypes();
-  const { setViews } = useViews();
-  const { setNotes } = useNotes();
-  const { setAreas } = useAreas();
-  const { setTransform } = useTransform();
-  const { setUndoStack, setRedoStack } = useUndoRedo();
   const { connection, connected, openConnectionModal } = usePostgres();
+  const { importSchemas, importing } = useSchemaImport();
 
   const [available, setAvailable] = useState([]);
   const [selected, setSelected] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [importing, setImporting] = useState(false);
   const [error, setError] = useState(null);
 
   const loadSchemas = useCallback(async () => {
@@ -72,33 +51,8 @@ export default function SchemaImport({ setModal }) {
       setError({ message: t("select_at_least_one_schema") });
       return;
     }
-    setImporting(true);
-    setError(null);
-    try {
-      const { catalog } = await introspectSchema(connection, selected);
-      const diagram = catalogToDiagram(catalog);
-      setDatabase(DB.POSTGRES);
-      setTables(diagram.tables);
-      setRelationships(diagram.relationships);
-      setEnums(diagram.enums ?? []);
-      setTypes(diagram.types ?? []);
-      setViews([]);
-      setNotes([]);
-      setAreas([]);
-      setSqlHeader("");
-      setTransform((prev) => ({ ...prev, pan: { x: 0, y: 0 } }));
-      setUndoStack([]);
-      setRedoStack([]);
-      Toast.success(t("import_success"));
-      if (diagram.skippedViews?.length) {
-        Toast.warning(t("views_not_imported"), { duration: 6 });
-      }
-      setModal(MODAL.NONE);
-    } catch (e) {
-      setError(e);
-    } finally {
-      setImporting(false);
-    }
+    const ok = await importSchemas(selected);
+    if (ok) setModal(MODAL.NONE);
   };
 
   return (
@@ -135,7 +89,7 @@ export default function SchemaImport({ setModal }) {
         <Button theme="borderless" onClick={() => setModal(MODAL.NONE)}>
           {t("cancel")}
         </Button>
-        <Button theme="solid" loading={importing} onClick={doImport}>
+        <Button theme="solid" loading={Boolean(importing)} onClick={doImport}>
           {importing ? t("importing") : t("import")}
         </Button>
       </div>

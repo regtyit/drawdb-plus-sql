@@ -6,6 +6,9 @@ import { MODAL } from "../../../data/constants";
 import { introspectSchema, runQuery } from "../../../api/postgres";
 import { catalogToDiagram } from "../../../utils/postgres/introspect";
 import { buildMigration } from "../../../utils/postgres/migrate";
+import { errorContext } from "../../../utils/postgres/errorContext";
+import { validateSql } from "../../../utils/postgres/validateSql";
+import { schemaSearchPath } from "../../../utils/postgres/schemaPath";
 import CodeEditor from "../../CodeEditor";
 
 const GROUP_LABELS = [
@@ -14,6 +17,7 @@ const GROUP_LABELS = [
   "primary_key",
   "foreign_key",
   "index",
+  "check",
   "enum",
   "type",
 ];
@@ -24,14 +28,19 @@ export default function SchemaMigration({ setModal }) {
   const { enums } = useEnums();
   const { types } = useTypes();
   // views not used in migration calculation
-  // views not used in migration calculation
   const { connection, connected, openConnectionModal } = usePostgres();
   const [includeDrops, setIncludeDrops] = useState(false);
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [autoCheck, setAutoCheck] = useState("idle");
   const [error, setError] = useState(null);
+  const [errorStage, setErrorStage] = useState("validate");
   const [summary, setSummary] = useState(null);
   const [migration, setMigration] = useState(null);
+  const ctx = error?.position
+    ? errorContext(migration?.sql, error.position)
+    : null;
 
   const desired = useMemo(
     () => ({ tables, relationships, enums, types }),
@@ -49,6 +58,7 @@ export default function SchemaMigration({ setModal }) {
       const actual = catalogToDiagram(catalog);
       setMigration(buildMigration(desired, actual, catalog, { includeDrops }));
     } catch (e) {
+      setErrorStage("load");
       setError(e);
       setMigration(null);
     } finally {
@@ -60,6 +70,55 @@ export default function SchemaMigration({ setModal }) {
     compute();
   }, [compute]);
 
+  // Validate every generated diff immediately (inside a rolled-back
+  // transaction) so the user sees whether it is safe before applying.
+  useEffect(() => {
+    if (!connected || !migration?.sql) {
+      setAutoCheck("idle");
+      return undefined;
+    }
+    let cancelled = false;
+    setAutoCheck("checking");
+    validateSql(connection, migration.sql)
+      .then(() => {
+        if (cancelled) return;
+        setAutoCheck("ok");
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setAutoCheck("failed");
+        setErrorStage("validate");
+        setError(e);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, connection, migration?.sql]);
+
+  const onValidateMigration = async () => {
+    if (!connected) {
+      setModal(MODAL.NONE);
+      openConnectionModal();
+      return;
+    }
+    if (!migration?.sql) return;
+    setValidating(true);
+    setAutoCheck("checking");
+    setError(null);
+    setSummary(null);
+    try {
+      await validateSql(connection, migration.sql);
+      setAutoCheck("ok");
+      Toast.success(t("validate_success"));
+    } catch (e) {
+      setAutoCheck("failed");
+      setErrorStage("validate");
+      setError(e);
+    } finally {
+      setValidating(false);
+    }
+  };
+
   const apply = async () => {
     if (!connected) {
       setModal(MODAL.NONE);
@@ -69,9 +128,12 @@ export default function SchemaMigration({ setModal }) {
     if (!migration?.sql) return;
     setApplying(true);
     setError(null);
+    setErrorStage("apply");
     setSummary(null);
     try {
-      const res = await runQuery(connection, migration.sql);
+      const res = await runQuery(connection, migration.sql, {
+        searchPath: schemaSearchPath(connection.schema),
+      });
       setSummary(res.results);
       Toast.success(t("apply_success"));
       await compute();
@@ -135,6 +197,18 @@ export default function SchemaMigration({ setModal }) {
         </div>
       )}
 
+      {connected && migration?.hasChanges && autoCheck === "checking" && (
+        <div className="text-xs rounded border border-color p-2 opacity-70 flex items-center gap-2">
+          <Spin size="small" />
+          {t("preflight_checking")}
+        </div>
+      )}
+      {connected && migration?.hasChanges && autoCheck === "ok" && (
+        <div className="text-xs rounded border border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-900 p-2">
+          {t("preflight_ok")}
+        </div>
+      )}
+
       {migration?.hasChanges && (
         <div
           className="rounded overflow-hidden border border-color"
@@ -156,10 +230,23 @@ export default function SchemaMigration({ setModal }) {
 
       {error && (
         <div className="text-xs rounded border border-red-300 bg-red-50 dark:bg-red-950/40 dark:border-red-900 p-2">
-          <div className="font-semibold">{t("apply_error")}</div>
+          <div className="font-semibold">
+            {t(
+              errorStage === "apply"
+                ? "apply_error"
+                : errorStage === "load"
+                  ? "migration_load_error"
+                  : "preflight_error",
+            )}
+          </div>
           <div className="whitespace-pre-wrap break-words">{error.message}</div>
-          {error.position && (
-            <div className="opacity-70">@{error.position}</div>
+          <div className="opacity-70">
+            @{error.position && ` char ${error.position}, line ${ctx?.line}`}
+          </div>
+          {ctx && (
+            <pre className="m-0 mt-1 p-1 rounded font-mono text-[11px] whitespace-pre-wrap break-words bg-white/60 dark:bg-black/40">
+              {ctx.snippet}
+            </pre>
           )}
         </div>
       )}
@@ -180,6 +267,13 @@ export default function SchemaMigration({ setModal }) {
           {t("close")}
         </Button>
         <Button
+          loading={validating}
+          disabled={!migration?.sql}
+          onClick={onValidateMigration}
+        >
+          {validating ? t("validating") : t("validate")}
+        </Button>
+        <Button
           theme="solid"
           loading={applying || loading}
           disabled={!migration?.hasChanges}
@@ -188,7 +282,7 @@ export default function SchemaMigration({ setModal }) {
           {applying ? t("applying") : t("apply")}
         </Button>
       </div>
-      {(applying || loading) && (
+      {(applying || validating || loading) && (
         <div className="text-center">
           <Spin size="small" />
         </div>

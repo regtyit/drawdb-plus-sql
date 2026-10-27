@@ -6,29 +6,83 @@ import {
   uniqueConstraintClause,
   getFkColumnNames,
 } from "./shared";
-import { dbToTypes } from "../../data/datatypes";
+import { stripCheckWrapper } from "../postgres/checks";
+
+function quoteIdent(name) {
+  return `"${String(name).replace(/"/g, '""')}"`;
+}
+
+function checkClause(field) {
+  const expression = stripCheckWrapper(field.check);
+  if (!expression) return "";
+  const name = String(field.checkName ?? "").trim();
+  return ` ${name ? `CONSTRAINT ${quoteIdent(name)} ` : ""}CHECK (${expression})`;
+}
+
+function guardDuplicate(sql) {
+  const body = sql
+    .trim()
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
+  return `DO $drawdb_guard$\nBEGIN\n${body}\nEXCEPTION WHEN duplicate_object THEN NULL;\nEND\n$drawdb_guard$;`;
+}
+
+function sqlLiteral(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function regclassLiteral(name) {
+  return sqlLiteral(`"${String(name).replace(/"/g, '""')}"`);
+}
+
+/**
+ * PostgreSQL gives unnamed foreign keys a fresh name (`…_fkey1`) instead of
+ * reporting a duplicate, which silently creates the same constraint twice on
+ * re-apply. Using a deterministic name plus an existence check keeps the
+ * "create only if missing" mode idempotent.
+ */
+function guardForeignKey({ tableName, constraintName, statement }) {
+  return `DO $drawdb_guard$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = to_regclass(${regclassLiteral(tableName)})
+      AND conname = ${sqlLiteral(constraintName)}
+  ) THEN
+${statement
+  .trim()
+  .split("\n")
+  .map((line) => `    ${line}`)
+  .join("\n")}
+  END IF;
+END
+$drawdb_guard$;`;
+}
 
 function tablesToPostgres(diagram) {
-  const enumStatements = diagram.enums
-    .map(
-      (e) =>
-        `CREATE TYPE "${e.name}" AS ENUM (\n${e.values
-          .map((v) => `\t'${escapeQuotes(String(v))}'`)
-          .join(",\n")}\n);\n`,
-    )
+  const idempotent = Boolean(diagram.idempotent);
+  const enumStatements = (diagram.enums ?? [])
+    .map((e) => {
+      const statement = `CREATE TYPE "${e.name}" AS ENUM (\n${e.values
+        .map((v) => `\t'${escapeQuotes(String(v))}'`)
+        .join(",\n")}\n);`;
+      return idempotent ? guardDuplicate(statement) : `${statement}\n`;
+    })
     .join("\n");
 
-  const typeStatements = diagram.types
-    .map(
-      (type) =>
-        `CREATE TYPE ${type.name} AS (\n${type.fields
-          .map((f) => `\t${f.name} ${f.type}`)
-          .join(",\n")}\n);${
-          type.comment?.trim()
-            ? `\n\nCOMMENT ON TYPE "${type.name}" IS '${escapeQuotes(type.comment)}';`
-            : ""
-        }`,
-    )
+  const typeStatements = (diagram.types ?? [])
+    .map((type) => {
+      const statement = `CREATE TYPE ${type.name} AS (\n${type.fields
+        .map((f) => `\t${f.name} ${f.type}`)
+        .join(",\n")}\n);`;
+      const create = idempotent ? guardDuplicate(statement) : statement;
+      const comment = type.comment?.trim()
+        ? `\n\nCOMMENT ON TYPE "${type.name}" IS '${escapeQuotes(type.comment)}';`
+        : "";
+      return `${create}${comment}`;
+    })
     .join("\n\n");
 
   const tableStatements = diagram.tables
@@ -38,7 +92,7 @@ function tablesToPostgres(diagram) {
           ? `\n) INHERITS (${table.inherits.map((parent) => `"${parent}"`).join(", ")})`
           : "\n)";
 
-      const fieldDefinitions = table.fields
+      const fieldDefinitions = (table.fields ?? [])
         .map(
           (field) =>
             `${exportFieldComment(field.comment)}\t"${
@@ -51,11 +105,7 @@ function tablesToPostgres(diagram) {
               String(field.default ?? "").trim()
                 ? ` DEFAULT ${parseDefault(field, diagram.database)}`
                 : ""
-            }${
-              field.check && dbToTypes[diagram.database][field.type]?.hasCheck
-                ? ` CHECK(${field.check})`
-                : ""
-            }`,
+            }${checkClause(field)}`,
         )
         .join(",\n");
 
@@ -81,10 +131,12 @@ function tablesToPostgres(diagram) {
         .filter(Boolean)
         .join("\n");
 
-      const indexStatements = table.indices
+      const indexStatements = (table.indices ?? [])
         .map(
           (i) =>
-            `CREATE ${i.unique ? "UNIQUE " : ""}INDEX "${i.name}"\nON "${table.name}" (${i.fields
+            `CREATE ${i.unique ? "UNIQUE " : ""}INDEX ${
+              idempotent ? "IF NOT EXISTS " : ""
+            }"${i.name}"\nON "${table.name}" (${i.fields
               .map((f) => `"${f}"`)
               .join(", ")});`,
         )
@@ -100,7 +152,7 @@ function tablesToPostgres(diagram) {
     })
     .join("\n\n");
 
-  const foreignKeyStatements = diagram.references
+  const foreignKeyStatements = (diagram.references ?? [])
     .map((r) => {
       const startTable = diagram.tables.find((t) => t.id === r.startTableId);
       const endTable = diagram.tables.find((t) => t.id === r.endTableId);
@@ -112,24 +164,34 @@ function tablesToPostgres(diagram) {
         startTable,
         endTable,
       );
-      if (startColumns.some((c) => !c) || endColumns.some((c) => !c))
-        return "";
+      if (startColumns.some((c) => !c) || endColumns.some((c) => !c)) return "";
 
-      return `ALTER TABLE "${startTable.name}"\nADD FOREIGN KEY(${startColumns
+      const constraintName = `${startTable.name}_${startColumns.join(
+        "_",
+      )}_fkey`;
+      const addClause = `ALTER TABLE "${startTable.name}"\n${
+        idempotent
+          ? `ADD CONSTRAINT "${constraintName.replace(/"/g, '""')}"`
+          : "ADD"
+      } FOREIGN KEY(${startColumns
         .map((c) => `"${c}"`)
         .join(", ")}) REFERENCES "${endTable.name}"(${endColumns
         .map((c) => `"${c}"`)
-        .join(", ")})\nON UPDATE ${r.updateConstraint.toUpperCase()} ON DELETE ${r.deleteConstraint.toUpperCase()};`;
+        .join(
+          ", ",
+        )})\nON UPDATE ${String(r.updateConstraint).toUpperCase()} ON DELETE ${String(r.deleteConstraint).toUpperCase()};`;
+      return idempotent
+        ? guardForeignKey({
+            tableName: startTable.name,
+            constraintName,
+            statement: addClause,
+          })
+        : addClause;
     })
     .filter(Boolean)
     .join("\n");
 
-  return [
-    enumStatements,
-    typeStatements,
-    tableStatements,
-    foreignKeyStatements,
-  ]
+  return [enumStatements, typeStatements, tableStatements, foreignKeyStatements]
     .map((s) => s.trim())
     .filter(Boolean)
     .join("\n\n");

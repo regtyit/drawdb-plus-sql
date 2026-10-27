@@ -54,10 +54,17 @@ export const runQuery = (connection, sql, options = {}) =>
     sql,
     params: options.params,
     maxRows: options.maxRows,
+    searchPath: options.searchPath,
   });
 
 export const getSchemas = (connection) =>
   post("/api/postgres/schemas", { connection });
+
+export const listDatabases = (connection) =>
+  post("/api/postgres/databases", { connection });
+
+export const createDatabase = (connection, name) =>
+  post("/api/postgres/databases/create", { connection, name });
 
 export const introspectSchema = (connection, schemas) =>
   post("/api/postgres/schema", { connection, schemas });
